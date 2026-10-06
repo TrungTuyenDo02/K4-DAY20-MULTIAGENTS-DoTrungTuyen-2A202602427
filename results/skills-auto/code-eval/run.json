@@ -1,24 +1,24 @@
 {
-  "task": "code-learn",
+  "task": "code-eval",
   "condition": "skills-auto",
-  "role": "learn",
+  "role": "eval",
   "error": null,
-  "timestamp": "2026-10-06T05:46:27.655363+00:00",
+  "timestamp": "2026-10-06T05:45:13.977387+00:00",
   "skills_sha256": "f38a9b7c8c78b927638d1d4a1ce9ce9324e3c42e53925e4961e12b06c20cf18c",
-  "seconds": 61.9,
+  "seconds": 71.4,
   "tokens": {
-    "input": 67481,
-    "output": 3616,
-    "total": 71097
+    "input": 81668,
+    "output": 3969,
+    "total": 85637
   },
-  "tool_calls": 18,
+  "tool_calls": 21,
   "subagent_calls": 0,
   "skills_read": 1,
   "skills_modified": false,
-  "final_message": "Fixed price parsing, half-up discount rounding, strict case-insensitive low-stock reporting, and RFC-style CSV quoting. Added regression tests and Unreleased changelog entries. All 10 tests pass.\n\nChanged: `workspace/inventory/pricing.py`, `workspace/inventory/export.py`, `workspace/inventory/report.py`, `workspace/tests/test_regressions.py`, `workspace/CHANGELOG.md`.",
-  "score": 1.0,
+  "final_message": "Fixed duration parsing for all documented formats, corrected billable-block rounding and validation, and made `add_slot` return a fresh list. Added regression tests and changelog entries. The full test suite passes: 6 tests.\n\nChanged: `workspace/bookings/billing.py`, `workspace/bookings/timeutil.py`, `workspace/bookings/schedule.py`, `workspace/bookings/calendar_export.py`, `workspace/tests/test_regressions.py`, `workspace/CHANGELOG.md`.",
+  "score": 0.9090909090909091,
   "passed": 10,
-  "total": 10,
+  "total": 11,
   "checks": [
     {
       "name": "visible_suite_passes",
@@ -31,7 +31,7 @@
       "detail": ""
     },
     {
-      "name": "parse_price_all_formats",
+      "name": "parse_duration_all_formats",
       "passed": true,
       "detail": ""
     },
@@ -41,17 +41,17 @@
       "detail": ""
     },
     {
-      "name": "discount_rounds_half_up",
+      "name": "billable_blocks_round_up",
       "passed": true,
       "detail": ""
     },
     {
-      "name": "low_stock_follows_docstring",
+      "name": "add_slot_no_shared_state",
       "passed": true,
       "detail": ""
     },
     {
-      "name": "csv_quoting_follows_docstring",
+      "name": "negative_minutes_rejected",
       "passed": true,
       "detail": ""
     },
@@ -68,6 +68,11 @@
     {
       "name": "rule_changelog",
       "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "rule_version_bump",
+      "passed": false,
       "detail": ""
     }
   ]

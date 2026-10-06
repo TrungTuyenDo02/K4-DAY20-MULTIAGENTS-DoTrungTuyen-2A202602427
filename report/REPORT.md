@@ -1,7 +1,5 @@
 # Báo cáo Lab: Self evolving Agentic
 
-> Sao chép tệp này thành `report/REPORT.md` (đã làm ở Phần 0) và điền dần qua các Phần của lab. Xóa các dòng hướng dẫn dạng trích dẫn (bắt đầu bằng `>`). Văn phong kỹ thuật, ngắn gọn, mọi nhận định đi kèm số liệu hoặc bằng chứng. Trong buổi học: điền mục 1 đến 7 (bản nháp). Sau buổi học: hoàn thiện mục 8 đến 10.
-
 ## 1. Thông tin nhóm và cấu hình
 
 | Họ tên | Mã sinh viên | Phần đóng góp |
@@ -10,8 +8,8 @@
 
 - Mô hình (tên deployment hoặc `LAB_MODEL`), nhiệt độ (`LAB_TEMPERATURE`), `recursion_limit`: `LAB_MODEL=openai:gpt-6-luna`; `LAB_TEMPERATURE=1` (mô hình này từ chối `temperature=0` với lỗi 400 "Only the default (1) value is supported", nên mọi lần chạy đều có tính ngẫu nhiên); `recursion_limit=60` (mặc định của runner).
 - Phiên bản Deep Agents (`pip show deepagents`), hệ điều hành, chạy trực tiếp hay trong Docker: `deepagents==0.7.21`; Windows 11, chạy trực tiếp trong WSL2 Ubuntu (Python 3.12.3, venv riêng), không dùng Docker.
-- Số lần chạy tác vụ đã dùng / ngân sách:
-- Commit của tag `freeze`:
+- Số lần chạy tác vụ đã dùng / ngân sách: 21 lần chạy được lưu trong `results/` (baseline 6, subagents 6, skills-auto 6, skills-auto-dev 3), tổng 1.700.368 token; cộng thêm 3 lần chạy baseline bị bỏ do lỗi CRLF, 1 lần chạy subagents bị dừng giữa chừng, 1 lần baseline data-learn song song bị ghi đè, và 3 lần gọi curator. Không có ngân sách cố định.
+- Commit của tag `freeze`: `110baa9a4beab6395255b6f3efeb3669d2be23f4` (2026-10-06T12:33:24+07:00); commit `hypotheses`: `ed16cbd`.
 
 ## 2. Giả thuyết (commit TRƯỚC tag `freeze`, Phần 4.0)
 
@@ -75,43 +73,96 @@ Nhận xét:
   - Trước lần 3, prompt của curator (`CURATOR_PROMPT` trong `src/lab/curator.py`) được sửa: nói rõ quy ước Acme phải được phát biểu cụ thể, và cho phép tên hoặc giá trị do quy ước quy định (tên tệp đầu ra, khóa JSON, header, schema version, tiêu đề), đúng như `05_skill_quality.md`. Các cấm đoán vẫn giữ: id tác vụ, tên tệp dữ liệu đầu vào, cột, hàm, kết quả tính. `test_04` vẫn đạt.
   - Lần 3 sinh 3 skill. `financial-data-output-conventions` bị `validate_skill` **từ chối** ("mentions evaluation material: orders"). Từ `orders` trùng tên một tệp của tác vụ đánh giá, nên cơ chế chống rò rỉ đã chặn nó. Do đã hết số lần chạy lại, bộ skill cuối **không có skill cho họ `data`**. Không sửa tay nội dung skill nào.
 
-| Skill | Tổng quát hay riêng cho tác vụ học? | Đúng hay sai (nêu chỗ sai nếu có) | Độ dài, `description` và `skills_read` ở Phần 3.4 |
-|---|---|---|---|
 Kết quả Phần 3.4 (`results/skills-auto-dev/`, 3 tác vụ học; `skills_sha256` = `f38a9b7c8c78...` ở cả 3 lần chạy, `skills_modified = false`): code-learn 10/10 (143.812 token), data-learn 5/8 (75.549 token), logs-learn 9/9 (34.380 token). Check quy ước đạt 6/9 so với 0/9 của baseline; 3 check còn trượt đều ở data-learn, họ không có skill. Ở data-learn tác tử đọc cả hai skill không liên quan, chép khóa `schema_version`/`generated_by: log-triage` của skill log vào `answer.json`, và câu trả lời cuối ghi "The report includes the Acme convention metadata", một khẳng định sai lệch (gần nhóm F) vì khối `meta` đúng quy ước không có (`rule_meta_block` trượt).
 
+| Skill | Tổng quát hay riêng cho tác vụ học? | Đúng hay sai (nêu chỗ sai nếu có) | Độ dài, `description` và `skills_read` ở Phần 3.4 |
+|---|---|---|---|
 | `python-package-bugfix-hygiene` | Tổng quát cho mọi tác vụ sửa lỗi gói Python theo quy ước Acme: không nêu tên hàm, tệp nguồn hay lỗi cụ thể của code-learn. Chỉ nêu tên do quy ước quy định (`tests/test_regressions.py`, `CHANGELOG.md`, `## Unreleased`). | Đúng, khớp với `detail` của 3 check `rule_type_hints`, `rule_regression_tests`, `rule_changelog` ("at least 3", định dạng `- fix(<function name>): <short description>`). Không có chỉ dẫn gây hại. | 12 dòng. `description` "Use when fixing bugs in a Python package." đủ rộng để kích hoạt ở tác vụ code mới. `skills_read` = 1 ở code-learn (đọc ngay ở tool call đầu tiên): **10/10** so với baseline 7/10, cả 3 check `rule_*` đạt. Trace cho thấy tác tử tạo `workspace/tests/test_regressions.py` và sửa `workspace/CHANGELOG.md`. |
 | `log-triage-output-conventions` | Tổng quát theo họ tác vụ log (ví dụ `payment-service` lấy từ chính `detail`), nhưng chỉ gồm đúng 3 quy ước đã thấy ở logs-learn. Quy ước log **mới** ở tác vụ khác sẽ không được bao phủ. | Đúng, khớp với `detail` của `rule_schema_header`, `rule_service_names`, `rule_sorted_errors`. Lưu ý: skill bảo đổi tên service sang `payment_service`, còn ví dụ trong đề dùng `payment-service`; tác tử phải chọn theo quy ước. | 11 dòng. `description` "Use when transforming application logs into structured JSON error reports." `skills_read` = 1 ở logs-learn: **9/9** so với baseline 6/9, cả 3 check `rule_*` đạt. **Chuyển giao âm** ở data-learn: tác tử (`skills_read` = 2) áp nhầm skill này vào `answer.json` ("schema_version": 2, "generated_by": "log-triage"). |
 
 ## 7. Kết quả so sánh (Phần 4.3, 4.4)
 
-> Dán nội dung `report/table.md` và kết quả `python scripts/check_breakdown.py`. Nêu các lần chạy có `error` hoặc `skills_modified = true` (nếu có) và cách xử lý.
+`python -m lab.compare > report/table.md`:
 
 ```text
-(dán bảng ở đây)
+| Task | baseline | subagents | skills-auto |
+|---|---|---|---|
+| code-learn | 7/10 | 7/10 | 10/10 |
+| data-learn | 5/8 | 5/8 | 5/8 |
+| logs-learn | 6/9 | 6/9 | 9/9 |
+| code-eval | 7/11 | 7/11 | 10/11 |
+| data-eval | 5/9 | 5/9 | 5/9 |
+| logs-eval | 6/10 | 6/10 | 9/10 |
+| **Mean score - learning tasks** | 0.66 | 0.66 | 0.88 |
+| **Mean score - evaluation tasks** | 0.60 | 0.60 | 0.79 |
+| **Mean tokens per run** | 45,552 | 143,086 | 52,466 |
+| **Runs that read a skill** | 0/6 | 0/6 | 6/6 |
 ```
+
+`python scripts/check_breakdown.py`:
+
+```text
+condition     role    technical  house rules  mean tokens  read a skill
+baseline      eval     18/18         0/12          51,070      0/3
+baseline      learn    18/18         0/9           40,034      0/3
+subagents     eval     18/18         0/12         156,553      0/3
+subagents     learn    18/18         0/9          129,619      0/3
+skills-auto   eval     18/18         6/12          54,917      3/3
+skills-auto   learn    18/18         6/9           50,015      3/3
+```
+
+Check thất bại trên tác vụ đánh giá (`detail` của tác vụ đánh giá để trống; chỉ có tên check):
+
+| Tác vụ | baseline và subagents (giống nhau) | skills-auto |
+|---|---|---|
+| code-eval | `rule_type_hints`, `rule_regression_tests`, `rule_changelog`, `rule_version_bump` | `rule_version_bump` |
+| data-eval | `rule_money_in_cents`, `rule_meta_block`, `rule_clean_csv`, `rule_sorted_keys_format` | giống baseline |
+| logs-eval | `rule_service_names`, `rule_sorted_errors`, `rule_schema_header`, `rule_source_line` | `rule_source_line` |
+
+- Không lần chạy nào có `error`; `skills_modified = false` ở cả 21 lần chạy được lưu.
+- `python scripts/verify_freeze.py` (trong WSL): `checked 6 runs of skill conditions: OK`. Hai lần kiểm tra đầu báo FAIL do môi trường, không phải do skill:
+  1. Khi chạy bằng Python Windows, `hash_skills` băm đường dẫn với `\` thay vì `/`, nên không khớp hash do WSL ghi.
+  2. `skills/auto/README.md` bị Windows checkout với CRLF, nên git trong WSL thấy khác tag. README được checkout lại đúng bytes của commit (không đổi nội dung skill), sau đó kiểm tra đạt `OK`.
 
 ## 8. Phân tích
 
-> Trả lời từng câu bằng số liệu từ mục 7 và bằng chứng từ vết. Kết quả âm hoặc không có khác biệt vẫn hợp lệ nếu được phân tích tốt.
-
-1. So với `baseline`, điều kiện nào cải thiện điểm tác vụ **học**? Điều kiện nào cải thiện điểm tác vụ **đánh giá**? Có điều kiện nào cải thiện tác vụ học nhưng không cải thiện tác vụ đánh giá? Nếu có, đó là dấu hiệu gì?
-2. Tách điểm thành check kỹ thuật và check quy ước (`rule_`). Skill do curator sinh giúp nhóm check nào? Check quy ước **mới** của tác vụ đánh giá có được skill giúp không, và vì sao?
-3. Dựa vào vết và `skills_read`, giải thích một check mà skill giúp đạt và một check mà skill không giúp (skill chưa được đọc, đọc nhưng không làm theo, skill thiếu hoặc sai).
-4. Chi phí: so sánh số token trung bình giữa các điều kiện. Điều kiện nào có hiệu quả tốt nhất theo điểm trên mỗi token? Đa tác tử có đáng chi phí trong thí nghiệm này không?
-5. Có dấu hiệu rò rỉ dữ liệu hoặc quá khớp nào trong skill sinh ra không? Nhóm đã phòng tránh như thế nào?
-6. Nhiễu: so sánh điểm tác vụ học của cùng bộ skill ở Phần 3.4 (đã sao lưu) và sau đóng băng. Chênh lệch bao nhiêu? Nó cho biết điều gì về độ tin cậy của các chênh lệch trong bảng ở mục 7?
+1. **Học và đánh giá.**
+   - `skills-auto` cải thiện cả hai: tác vụ học 0,664 → 0,875 (+0,21; 18/27 → 24/27 check), tác vụ đánh giá 0,597 → 0,788 (+0,19; 18/30 → 24/30 check).
+   - `subagents` không cải thiện ở đâu: điểm giống `baseline` đến từng check trên cả 6 tác vụ (H1 được ủng hộ).
+   - Không có điều kiện nào cải thiện tác vụ học mà không cải thiện tác vụ đánh giá. Mức tăng tuyệt đối bằng nhau (+6 check), nhưng tỉ lệ check quy ước đạt giảm từ 6/9 (67%) xuống 6/12 (50%). Phần chênh nằm hoàn toàn ở 3 quy ước **mới** của tác vụ đánh giá. Vì vậy H3 chỉ được ủng hộ một phần: có giới hạn chuyển giao, nhưng không có quá khớp theo nghĩa "quy ước đã học không dùng được ở tác vụ mới". H2 được ủng hộ: `skills-auto` cao nhất, lợi ích chỉ ở quy ước dùng chung của họ code và logs, không có ở họ data.
+2. **Kỹ thuật và quy ước.**
+   - Check kỹ thuật đạt 18/18 ở mọi điều kiện và vai trò, nên skill không có chỗ giúp. Toàn bộ lợi ích nằm ở check `rule_`.
+   - Trên tác vụ đánh giá, các quy ước **dùng chung** với tác vụ học cùng họ đạt 6/6 ở code và logs (`rule_type_hints`, `rule_regression_tests`, `rule_changelog`, `rule_service_names`, `rule_sorted_errors`, `rule_schema_header`).
+   - Quy ước **mới** (`rule_version_bump`, `rule_sorted_keys_format`, `rule_source_line`) đạt 0/3 ở mọi điều kiện. Lý do: curator chỉ thấy phản hồi của tác vụ học, nên skill không thể chứa một quy tắc chưa từng xuất hiện, và đề không nêu chúng.
+   - Họ data đạt 0/4 vì bộ skill không có skill data (skill đó bị `validate_skill` chặn, mục 6).
+3. **Một check được giúp, một check không.**
+   - *Được giúp:* `rule_changelog` và `rule_regression_tests` ở code-eval. Tác tử đọc `skills/python-package-bugfix-hygiene/SKILL.md` (`skills_read` = 1), rồi vết có `write_file`/`edit_file` vào `workspace/tests/test_regressions.py` và `workspace/CHANGELOG.md`. Vết `baseline` code-eval chỉ sửa ba tệp nguồn trong gói và không động tới hai tệp này.
+   - *Không được giúp, vì skill thiếu:* `rule_source_line` ở logs-eval. Tác tử đọc `log-triage-output-conventions` và làm đủ 3 quy tắc trong đó (9/10), nhưng skill không có quy tắc này.
+   - *Không được giúp, vì skill sai họ:* ở data-eval, tác tử chỉ đọc skill log (`skills_read` = 1) và ghi `"generated_by": "log-triage"` vào `answer.json`, một chuyển giao âm. Hiện tượng này cũng đã thấy ở data-learn Phần 3.4. Điểm không giảm vì khóa thừa không bị chấm, nhưng đây là bằng chứng skill có thể được áp nhầm khi `description` của skill khác họ vẫn "nghe hợp lý".
+4. **Chi phí.**
+   - Token trung bình mỗi lần chạy: `baseline` 45.552, `skills-auto` 52.466 (+15%), `subagents` 143.086 (**3,1×**).
+   - Điểm trung bình (học và đánh giá) trên 100k token: `skills-auto` 0,832/52.466 ≈ **1,58**; `baseline` 0,631/45.552 ≈ 1,38; `subagents` 0,631/143.086 ≈ 0,44.
+   - Đa tác tử **không đáng** chi phí trong thí nghiệm này: gấp ~3 lần token và 2-11 lần thời gian (ví dụ data-eval 204,2 s so với 18,8 s) mà không thêm check nào. Lỗi duy nhất là thiếu thông tin (quy ước không có trong đề), nên chia việc cho nhiều tác tử không giải quyết được.
+5. **Rò rỉ và quá khớp.**
+   - Không có rò rỉ: hai skill giữ lại đều qua `validate_skill` (không chứa marker nào của tác vụ đánh giá). Curator chỉ đọc run có `role == "learn"` (`test_04` kiểm tra điều này). Một skill data đã bị chặn vì chứa `orders`, tên tệp của tác vụ đánh giá.
+   - Có dấu hiệu quá khớp hẹp: `log-triage-output-conventions` chỉ gồm đúng 3 quy ước của logs-learn, nên bỏ sót quy ước log mới (`rule_source_line`).
+   - Biện pháp: chỉ dùng phản hồi tác vụ học; prompt cấm id tác vụ, tên tệp đầu vào, cột, hàm và kết quả; xóa hai bộ skill trừu tượng; không sửa tay skill; đóng băng bằng tag `freeze` và kiểm tra `verify_freeze`.
+6. **Nhiễu.**
+   - Cùng bộ skill, tác vụ học, Phần 3.4 (`results/skills-auto-dev`) so với sau đóng băng: điểm **giống hệt** (10/10, 5/8, 9/9; chênh 0 check). Token thì dao động mạnh: code-learn 143.812 → 71.097, data-learn 75.549 → 41.463, logs-learn 34.380 → 37.485.
+   - Hai lần `baseline data-learn` (phụ lục) cũng cùng 5/8 nhưng 51.742 so với 25.022 token.
+   - Vậy ở `temperature=1`, **điểm** ổn định (nhiễu quan sát được bằng 0 check), còn **token** có thể chênh khoảng 2 lần. Chênh lệch +6 check của `skills-auto` lớn hơn nhiều so với nhiễu điểm quan sát được, và có cơ chế giải thích bằng vết. Ngược lại, so sánh token giữa các điều kiện chỉ đáng tin khi chênh lệch lớn (như 3× của `subagents`); +15% của `skills-auto` nằm trong mức nhiễu.
 
 ## 9. Hạn chế và tính hợp lệ
 
-> Nêu ít nhất 3 hạn chế và ảnh hưởng của từng hạn chế đến kết luận (ví dụ: chỉ 3 tác vụ mỗi vai trò, mỗi cấu hình chạy một lần, nhiễu của mô hình, tác vụ do giảng viên thiết kế sẵn quy ước, chỉ một mô hình).
-
-1.
-2.
-3.
+1. **Ít tác vụ, mỗi cấu hình chạy một lần.** Chỉ 3 tác vụ mỗi vai trò, mỗi tổ hợp điều kiện × tác vụ chạy 1 lần (riêng `skills-auto` trên tác vụ học có 2 lần). Không thể tính khoảng tin cậy; kết luận "+6 check" dựa vào việc nhiễu điểm quan sát được bằng 0 trên 4 cặp lặp lại, một mẫu rất nhỏ.
+2. **Một mô hình, buộc dùng `temperature=1`.** Chỉ dùng `gpt-6-luna`, vốn không cho đặt `temperature=0`. Mô hình mạnh nên check kỹ thuật bão hòa (18/18), khiến không đo được tác dụng của skill hay subagent lên nhóm lỗi A-D. Với mô hình yếu hơn kết quả có thể khác, ví dụ reviewer có thể bắt được lỗi kỹ thuật.
+3. **Tác vụ thiết kế sẵn quy ước ẩn.** Mọi lỗi đều là nhóm E, tức là thiếu thông tin chứ không phải thiếu năng lực. Điều này ưu ái `skills-auto` (skill mang thông tin mới) và bất lợi cho `subagents` (chỉ tổ chức lại thông tin sẵn có). Kết luận không khái quát cho tác vụ mà lỗi chủ yếu là kỹ thuật.
+4. **Can thiệp vào curator.** Prompt curator được sửa một lần sau khi thấy hai bộ skill trừu tượng (mục 6), vẫn trong giai đoạn học và trước khi xem tác vụ đánh giá. Kết quả `skills-auto` vì vậy phản ánh "curator + một vòng chỉnh prompt của người", không phải curator mặc định. Việc thiếu skill data cũng phụ thuộc vào một lần sinh ngẫu nhiên (từ `orders`).
+5. **Môi trường.** Lỗi CRLF trên Windows buộc phải bỏ lần chạy baseline đầu và chạy lại; một lần chạy baseline data-learn song song đã ghi đè kết quả (phụ lục). Số đếm `tool_calls`, `skills_read` chỉ tính luồng chính, không thấy việc bên trong subagent.
 
 ## 10. Kết luận
 
-> Tối đa 5 câu. Chỉ khẳng định điều số liệu hỗ trợ. Nêu một đề xuất cải tiến tiếp theo.
+Trên 6 tác vụ với `gpt-6-luna`, mọi check kỹ thuật đều đạt (18/18) ở cả ba điều kiện, và toàn bộ điểm mất là do quy ước Acme không có trong đề. Skill do curator sinh tăng điểm đánh giá từ 0,60 lên 0,79 (+6 check) với token chỉ tăng ~15%, nhưng chỉ ở các quy ước đã gặp trong tác vụ học (6/6); quy ước mới đạt 0/3, và có chuyển giao âm khi skill log bị áp vào tác vụ data. Đa tác tử không cải thiện check nào mà tốn ~3,1 lần token, vì không tạo ra thông tin còn thiếu. Đề xuất tiếp theo: cho curator ghi skill theo từng họ tác vụ với `description` nêu rõ loại đầu ra (ví dụ "JSON error report from logs"), thêm một skill quy trình "khi đề nhắc tới review bot hoặc quy ước, tìm và liệt kê quy ước trước khi làm", rồi chạy lặp nhiều lần để đo phương sai.
 
 ## Phụ lục
 
@@ -121,5 +172,10 @@ Kết quả Phần 3.4 (`results/skills-auto-dev/`, 3 tác vụ học; `skills_s
   3. Sửa môi trường: checkout lại `tasks/` với LF (`git -c core.autocrlf=false checkout -- tasks/`), xóa `__pycache__` trong `tasks/`.
   4. `python -m lab.runner --condition baseline --tasks data-learn code-learn logs-learn` rồi `python -m lab.runner --condition subagents --tasks learn` (chạy lại, tuần tự).
   5. Ghi chú: `results/baseline/data-learn/run.json` là của một lần chạy `baseline data-learn` thứ hai bắt đầu lúc 05:15:18 UTC, chạy song song và ghi đè lần chạy lúc 05:12 (log của lần bị ghi đè: 5/8, 51.742 token). Hai lần cùng điểm 5/8 với cùng các check thất bại; báo cáo dùng số liệu trong `run.json`. Chênh lệch token giữa hai lần (25.022 so với 51.742) là một ví dụ về nhiễu ở `temperature=1`.
-- Thử thách mở rộng (nếu có): hướng chọn, kết quả, nhận xét.
-- Ghi chú khác:
+  6. `python -m lab.curator` ×3 (xóa bộ skill sau lần 1 và lần 2; sửa `CURATOR_PROMPT` trước lần 3; xem mục 6).
+  7. `python -m lab.runner --condition skills-auto --tasks learn` (Phần 3.4).
+  8. `git commit -m "hypotheses"` (`ed16cbd`); `git commit --allow-empty -m "freeze skills" && git tag freeze` (`110baa9`).
+  9. `mv results/skills-auto results/skills-auto-dev`; `python -m lab.runner --condition baseline --tasks eval`; `--condition subagents --tasks eval`; `--condition skills-auto --tasks all` (tuần tự).
+  10. `python scripts/verify_freeze.py` → `OK`; `python -m lab.compare > report/table.md`; `python scripts/check_breakdown.py`.
+- Thử thách mở rộng (nếu có): không thực hiện.
+- Ghi chú khác: `final_message` trong `run.json` lấy `AIMessage.text` (chỉ phần văn bản), vì `gpt-6-luna` qua Responses API trả về các khối reasoning đã mã hóa. `trace.md` (do `render_trace` có sẵn sinh ra) vẫn chứa các khối này.
